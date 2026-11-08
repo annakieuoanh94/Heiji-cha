@@ -78,7 +78,6 @@ var isRemoteUpdate = false;
 try{var s0=localStorage.getItem(K);if(s0)D=Object.assign(D,JSON.parse(s0))}catch(e){}
 function norm(){D.menu.forEach(function(m){if(!m.sizes||!m.sizes.length)m.sizes=[{s:"",p:m.p||0}];delete m.p});if(!D.shop)D.shop={n:"",a:"",ph:""}}norm();
 
-// Lắng nghe dữ liệu thời gian thực từ Firebase (Đồng bộ đa thiết bị)
 storeRef.on('value', function(snapshot) {
     var remoteData = snapshot.val();
     if (remoteData) {
@@ -164,7 +163,7 @@ function chg(i,d){var x=CART()[i];adj(x.m.id,x.si,d);if(!CART().length)closeShee
 function step2(){pend={note:$("note").value||"",date:$("odate").value||day(Date.now())};$("sheetIn").innerHTML=`<h3>Khách dùng thế nào?</h3><div class="mu">${PAYS[pay]} · ${vnd(total())}</div><button class="btn bb" onclick="finish(0)">Uống tại quán</button><button class="btn bb" onclick="finish(1)">Mang về</button><button class="btn s" onclick="drawCart()">Quay lại</button>`}
 function finish(d){var items=[];CART().forEach(function(x,i){var m=x.m,l=x.l,z=m.sizes[x.si],k=m.c==CATS[2]?undefined:"d"+i,it={n:m.n,s:z.s,q:x.q,p:z.p,t:[],c:m.c||"",note:(l.n[x.si]||"").trim()};if(k)it.k=k;items.push(it);if(x.first)Object.keys(l.t).forEach(function(tid){var tm=byId(tid);if(tm)items.push({n:tm.n,s:"",q:l.t[tid],p:tprice(tm),t:[],c:CATS[2],note:"",on:k})})});if(!items.length)return;
 var dd=pend.date,t=Date.now();if(dd!=day(t)){var q=dd.split("-"),n=new Date();t=new Date(+q[0],+q[1]-1,+q[2],n.getHours(),n.getMinutes()).getTime()}
-var o={id:uid(),t:t,day:dd,items:items,sum:total(),pay:PAYS[pay],dine:DINES[d],note:pend.note};rd=dd;D.orders.push(o);save();lines={};pend=null;closeSheet();drawMenu();if(prt)showRc(o);else toast("Đã lưu đơn "+vnd(o.sum))}
+var o={id:uid(),t:t,day:dd,items:items,sum:total(),pay:PAYS[pay],dine:DINES[d],note:pend.note};rd=dd;D.orders.push(o);save();lines={};pend=null;closeSheet();drawMenu();if(prt)showRc(o);else toast("Dã lưu đơn "+vnd(o.sum))}
 function rcHtml(o){var S=D.shop,h=`<div class="c"><b>${esc(S.n||"Hóa đơn")}</b>${S.a?"<br>"+esc(S.a):""}${S.ph?"<br>ĐT: "+esc(S.ph):""}</div><hr><div class="c">HÓA ĐƠN<br>${fmt(o.day)}</div><hr>`;
 o.items.forEach(function(x){h+=`<div class="l"><span>${esc(iname(x))} x${x.q}</span><span>${vnd(x.p*x.q)}</span></div>${tn(x)?`<div style="padding-left:8px">${esc(tn(x))}</div>`:""}${x.note?`<div style="padding-left:8px">- ${esc(x.note)}</div>`:""}`});
 return h+`<hr><div class="l"><b>TỔNG</b><b>${vnd(o.sum)}</b></div><div class="l"><span>Thanh toán</span><span>${esc(o.pay)}</span></div>${o.dine?`<div class="l"><span>Hình thức</span><span>${esc(o.dine)}</span></div>`:""}${o.note?`<div>Ghi chú: ${esc(o.note)}</div>`:""}<hr><div class="c">Cảm ơn quý khách!</div>`}
@@ -232,7 +231,7 @@ list.slice().sort(function(a,b){return a.t-b.t}).forEach(function(o){cnt[o.day]=
 dl(name,"﻿"+r.join("
 "),"text/csv")}
 function backup(){D.lastExport=Date.now();save();dl("sao-luu-"+day(Date.now())+".json",JSON.stringify(D),"application/json");report()}
-$("fi").onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var X=JSON.parse(r.result);if(mode=="replace"){D=Object.assign(D,X);norm()}else{var have={};D.orders.forEach(function(o){have[o.id]=1});var n=0;(X.orders||[]).forEach(function(o){if(!have[o.id]){D.orders.push(o);n++}});alert("Đã gộp thêm "+n+" đơn.")}save();drawMenu();report()}catch(e){alert("File không đúng.")}$("fi").value=""};r.readAsText(f)};
+$("fi").onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var X=JSON.parse(r.result);if(mode=="replace"){D=Object.assign(D,X);norm()}else{var have={};D.orders.forEach(function(o){have[o.id]=1});var n=0;(X.orders||[]).forEach(function(o){if(!have[o.id]){D.orders.push(o);n++}});alert("Dã gộp thêm "+n+" đơn.")}save();drawMenu();report()}catch(e){alert("File không đúng.")}$("fi").value=""};r.readAsText(f)};
 /* ---------- thực đơn ---------- */
 function catOpts(c){var h=`<option value=""${!c?" selected":""}>(Chưa phân loại)</option>`;allCats().forEach(function(x){h+=`<option value="${esc(x)}"${x==c?" selected":""}>${esc(x)}</option>`});return h}
 function editMenu(){var S=D.shop,h=`<div class="card"><b>Thông tin quán (in trên hóa đơn)</b><input id="sn" placeholder="Tên quán" value="${esc(S.n)}"><input id="sa" placeholder="Địa chỉ" value="${esc(S.a)}"><input id="sp" placeholder="Số điện thoại" value="${esc(S.ph)}"><div class="mu" style="margin-top:10px">Mã QR nhận chuyển khoản (chụp màn hình mã QR trong app ngân hàng):</div>${S.qr?`<img src="${S.qr}" style="width:140px;display:block;margin:8px 0;border-radius:8px;background:#fff">`:""}<button class="btn s" onclick="$('qf').click()">${S.qr?"Đổi ảnh QR":"Chọn ảnh QR"}</button>${S.qr?`<button class="btn d" onclick="D.shop.qr='';save();editMenu()">Xóa QR</button>`:""}<button class="btn s" onclick="saveShop()">Lưu thông tin quán</button></div><div class="mu" style="margin:4px 0 8px">Món, size và giá bán (đ). Sửa xong chạm ra ngoài là tự lưu. Để trống tên size nếu món chỉ có 1 cỡ. Món thuộc mục Topping sẽ hiện thành nút chọn thêm topping ở các món trà.</div>`;
@@ -291,7 +290,7 @@ P(["Theo tuần (bắt đầu thứ Hai)"]);P(["Tuần bắt đầu","Số đơn
 [["Theo ngày",S.bday,1],["Theo món",S.bi,2],["Theo mục",S.bc,3],["Hình thức thanh toán",S.bp],["Tại quán / Mang về",S.bd]].forEach(function(t){P([t[0]]);P(["Tên","Số lượng","Doanh thu"]);Object.keys(t[1]).sort(function(a,b){return t[2]==1?(a<b?-1:1):t[2]==2?pOrd(a)-pOrd(b):t[2]==3?CO.indexOf(a)-CO.indexOf(b):t[1][b].v-t[1][a].v}).forEach(function(k){P([k,t[1][k].q,t[1][k].v])});P([])});
 dl("tong-hop-thang-"+sm+".csv","﻿"+r.join("
 "),"text/csv")}
-applySet();
+applySet();drawMenu();
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
 document.addEventListener("visibilitychange",function(){if(!document.hidden)chkDay()});
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(function(){});
