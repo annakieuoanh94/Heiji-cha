@@ -3,6 +3,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Bán hàng">
 <title>Bán hàng</title>
+<!-- Firebase App & Database Compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
 :root{color-scheme:light;--bg:#fbf5e9;--card:#fffdf8;--tx:#3a2518;--mu:#8c7358;--ac:#6b3f22;--lb:#c9a57a;--ac2:#efdfc3;--ln:#eadcc4;--dg:#a63d2f;--up:#2f7d4f;--dn:#b3412e;padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px system-ui,sans-serif;padding-bottom:90px}
@@ -56,9 +59,53 @@ var PAYS=["Tiền mặt","Chuyển khoản","Ví điện tử"],DINES=["Tại qu
 var NEWMENU=[["Camelia",0],["Olong nướng",0],["Nguyên lá",0],["Hồng trà sữa",0],["Trà lài đậm vị",0],["Trà vải camelia",1],["Trà dâu",1],["Trà ổi",1],["Trà đào",1],["Hồng trà tắc",1],["Trà tắc",1],["Thạch trà",2],["Trân châu đen",2],["Trân châu hoàng kim",2],["Trân châu trắng",2]];
 function defMenu(){return NEWMENU.map(function(x,i){return{id:"m"+i,n:x[0],c:CATS[x[1]],sizes:x[1]==2?[{s:"",p:8000}]:[{s:"S",p:25000},{s:"L",p:30000},{s:"XL",p:35000}]}})}
 var D={menu:defMenu(),shop:{n:"",a:"",ph:""},orders:[],lastExport:0};
+
+// --- KẾT NỐI VÀ ĐỒNG BỘ FIREBASE ---
+var firebaseConfig = {
+    apiKey: "AIzaSyADom_YHj4Gzbxa-YWqDWlBk75Jy8A-5Ko",
+    authDomain: "heiji-cha-b6f38.firebaseapp.com",
+    databaseURL: "https://heiji-cha-b6f38-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "heiji-cha-b6f38",
+    storageBucket: "heiji-cha-b6f38.firebasestorage.app",
+    messagingSenderId: "362100119269",
+    appId: "1:362100119269:web:daa4b2f8b6fb7cc50ae60c"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
+var storeRef = db.ref('posStore');
+var isRemoteUpdate = false;
+
 try{var s0=localStorage.getItem(K);if(s0)D=Object.assign(D,JSON.parse(s0))}catch(e){}
 function norm(){D.menu.forEach(function(m){if(!m.sizes||!m.sizes.length)m.sizes=[{s:"",p:m.p||0}];delete m.p});if(!D.shop)D.shop={n:"",a:"",ph:""}}norm();
-function save(){try{localStorage.setItem(K,JSON.stringify(D))}catch(e){alert("Không lưu được dữ liệu trên máy này.")}}
+
+// Lắng nghe dữ liệu thời gian thực từ Firebase (Đồng bộ đa thiết bị)
+storeRef.on('value', function(snapshot) {
+    var remoteData = snapshot.val();
+    if (remoteData) {
+        isRemoteUpdate = true;
+        D.orders = remoteData.orders || D.orders;
+        D.menu = remoteData.menu || D.menu;
+        D.shop = remoteData.shop || D.shop;
+        try{localStorage.setItem(K,JSON.stringify(D))}catch(e){}
+        norm();
+        drawMenu();
+        if(cur==1) report();
+        if(cur==2) editMenu();
+        if(cur==3) summary();
+        isRemoteUpdate = false;
+    } else {
+        storeRef.set(D);
+    }
+});
+
+function save(){
+    try{localStorage.setItem(K,JSON.stringify(D))}catch(e){alert("Không lưu được dữ liệu trên máy này.")}
+    if(!isRemoteUpdate){
+        storeRef.set(D).catch(function(err){console.error("Firebase sync error:", err)});
+    }
+}
+// ------------------------------------
+
 if(D.menu.length==9&&D.menu[0].n=="Trà sữa truyền thống"&&D.menu[8].n=="Pudding"){D.menu=defMenu();save()}
 if((D.mv||0)<2){[["Trà lài đậm vị","Trà sữa"],["Hồng trà tắc","Trà trái cây"],["Trà tắc","Trà trái cây"]].forEach(function(a){if(D.menu.some(function(m){return m.n==a[0]}))return;var it={id:"m"+uid(),n:a[0],c:a[1],sizes:[{s:"S",p:25000},{s:"L",p:30000},{s:"XL",p:35000}]},last=-1;D.menu.forEach(function(m,i){if(m.c==a[1])last=i});if(last<0)D.menu.push(it);else D.menu.splice(last+1,0,it)});D.mv=2;save()}
 function $(i){return document.getElementById(i)}
@@ -142,7 +189,8 @@ function monthDays(m){var n=+lastDay(m).slice(8),a=[];for(var i=1;i<=n;i++)a.pus
 function pivotCsv(days,name){var R=prodDay(days),sum=function(a){return a.reduce(function(x,y){return x+y},0)},r=[["Món"].concat(days,["Tổng"]).map(cell).join(",")];
 R.forEach(function(x){r.push([x.k].concat(days.map(function(d){return x.q[d]||0}),[x.tot]).map(cell).join(","))});
 var n=days.map(function(d){return D.orders.filter(function(o){return o.day==d}).length}),v=days.map(function(d){var t=0;D.orders.forEach(function(o){if(o.day==d)t+=o.sum});return t});
-r.push(["Số đơn"].concat(n,[sum(n)]).map(cell).join(","));r.push(["Doanh thu"].concat(v,[sum(v)]).map(cell).join(","));dl(name,"\ufeff"+r.join("\n"),"text/csv")}
+r.push(["Số đơn"].concat(n,[sum(n)]).map(cell).join(","));r.push(["Doanh thu"].concat(v,[sum(v)]).map(cell).join(","));dl(name,"﻿"+r.join("
+"),"text/csv")}
 var wEnd=day(Date.now());
 function wd(d){var p=d.split("-");return["CN","T2","T3","T4","T5","T6","T7"][new Date(+p[0],+p[1]-1,+p[2]).getDay()]}
 var rv="w";
@@ -181,7 +229,8 @@ function cs(v){return'"'+String(v==null?"":v).replace(/"/g,'""')+'"'}
 function cell(v){return typeof v=="number"?v:cs(v)}
 function detailCsv(list,name){var cnt={},r=["Tháng,Ngày,Đơn trong ngày,Hình thức,Món,Size,Topping,Số lượng,Ghi chú món,Đơn giá,Thành tiền,Thanh toán,Ghi chú đơn"];
 list.slice().sort(function(a,b){return a.t-b.t}).forEach(function(o){cnt[o.day]=(cnt[o.day]||0)+1;o.items.forEach(function(x){r.push([o.day.slice(0,7),o.day,cnt[o.day],cs(o.dine||""),cs(x.n),cs(x.s||""),cs(topCol(o,x)),x.q,cs(x.note||""),x.p,x.p*x.q,cs(o.pay),cs(o.note||"")].join(","))})});
-dl(name,"\ufeff"+r.join("\n"),"text/csv")}
+dl(name,"﻿"+r.join("
+"),"text/csv")}
 function backup(){D.lastExport=Date.now();save();dl("sao-luu-"+day(Date.now())+".json",JSON.stringify(D),"application/json");report()}
 $("fi").onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var X=JSON.parse(r.result);if(mode=="replace"){D=Object.assign(D,X);norm()}else{var have={};D.orders.forEach(function(o){have[o.id]=1});var n=0;(X.orders||[]).forEach(function(o){if(!have[o.id]){D.orders.push(o);n++}});alert("Đã gộp thêm "+n+" đơn.")}save();drawMenu();report()}catch(e){alert("File không đúng.")}$("fi").value=""};r.readAsText(f)};
 /* ---------- thực đơn ---------- */
@@ -235,12 +284,14 @@ h+=secMon(S)+sec("Theo mục",S.bc,false,true)+sec("Hình thức thanh toán",S.
 h+=`<button class="btn" onclick="csvMonth()">Tải tổng hợp báo cáo tháng ${mo}/${y}</button><div class="mu" style="margin:6px 0 0">Tổng hợp gồm doanh thu, tuần, ngày, món, mục, thanh toán, tại quán / mang về. Chi tiết từng đơn tải ở tab Báo cáo.</div><button class="btn s" onclick="csvAll()">Tải tổng hợp tất cả các tháng (CSV)</button>`;$("v3").innerHTML=h}
 function csvMon(){var m=rd.slice(0,7);detailCsv(D.orders.filter(function(o){return o.day.slice(0,7)==m}),"bao-cao-thang-"+m+".csv")}
 function csvAll(){var ms={};D.orders.forEach(function(o){ms[o.day.slice(0,7)]=1});var ks=Object.keys(ms).sort(),r=["Tháng,Số đơn,Số phần,Doanh thu,So với tháng trước (%),Đơn tại quán,Đơn mang về,"+PAYS.join(",")],prev=0;
-ks.forEach(function(k){var S=sumData(k),p=prev?Math.round((S.rev-prev)/prev*100):"";r.push([k,S.n,S.items,S.rev,p,(S.bd["Tại quán"]||{q:0}).q,(S.bd["Mang về"]||{q:0}).q].concat(PAYS.map(function(x){return(S.bp[x]||{v:0}).v})).join(","));prev=S.rev});dl("tong-hop-tat-ca-thang.csv","\ufeff"+r.join("\n"),"text/csv")}
+ks.forEach(function(k){var S=sumData(k),p=prev?Math.round((S.rev-prev)/prev*100):"";r.push([k,S.n,S.items,S.rev,p,(S.bd["Tại quán"]||{q:0}).q,(S.bd["Mang về"]||{q:0}).q].concat(PAYS.map(function(x){return(S.bp[x]||{v:0}).v})).join(","));prev=S.rev});dl("tong-hop-tat-ca-thang.csv","﻿"+r.join("
+"),"text/csv")}
 function csvMonth(){var CO=allCats().concat(["Khác"]),S=sumData(sm),r=[],P=function(a){r.push(a.map(cell).join(","))};P(["Báo cáo tháng "+sm.slice(5)+"/"+sm.slice(0,4)]);P(["Doanh thu",S.rev]);P(["Số đơn",S.n]);P(["Số phần bán ra",S.items]);P([]);
 P(["Theo tuần (bắt đầu thứ Hai)"]);P(["Tuần bắt đầu","Số đơn","Doanh thu","So với tuần trước (%)"]);weeks().forEach(function(x){var p=pct(x.v,x.pv);P([x.w,x.n,x.v,p==null?"":p])});P([]);
 [["Theo ngày",S.bday,1],["Theo món",S.bi,2],["Theo mục",S.bc,3],["Hình thức thanh toán",S.bp],["Tại quán / Mang về",S.bd]].forEach(function(t){P([t[0]]);P(["Tên","Số lượng","Doanh thu"]);Object.keys(t[1]).sort(function(a,b){return t[2]==1?(a<b?-1:1):t[2]==2?pOrd(a)-pOrd(b):t[2]==3?CO.indexOf(a)-CO.indexOf(b):t[1][b].v-t[1][a].v}).forEach(function(k){P([k,t[1][k].q,t[1][k].v])});P([])});
-dl("tong-hop-thang-"+sm+".csv","\ufeff"+r.join("\n"),"text/csv")}
-applySet();drawMenu();
+dl("tong-hop-thang-"+sm+".csv","﻿"+r.join("
+"),"text/csv")}
+applySet();
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
 document.addEventListener("visibilitychange",function(){if(!document.hidden)chkDay()});
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(function(){});
